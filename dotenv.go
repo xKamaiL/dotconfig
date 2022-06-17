@@ -1,4 +1,4 @@
-package envconfig
+package dotconfig
 
 import (
 	"github.com/joho/godotenv"
