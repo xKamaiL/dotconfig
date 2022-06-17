@@ -8,10 +8,7 @@ import (
 // into a Struct pointer
 func Load(ptr any, filenames ...string) error {
 	if len(filenames) > 0 {
-		err := godotenv.Load(filenames...)
-		if err != nil {
-			return err
-		}
+		godotenv.Load(filenames...)
 	}
 	return Process("", ptr)
 }
