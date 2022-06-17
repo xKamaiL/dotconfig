@@ -50,11 +50,29 @@ func (e *ParseError) Error() string {
 
 // varInfo maintains information about the configuration variable
 type varInfo struct {
-	Name  string
-	Alt   string
-	Key   string
-	Field reflect.Value
-	Tags  reflect.StructTag
+	Name      string
+	Alt       string
+	Key       string
+	SplitWord string
+	Field     reflect.Value
+	Tags      reflect.StructTag
+}
+
+func extractWords(fName string) string {
+	words := gatherRegexp.FindAllStringSubmatch(fName, -1)
+	if len(words) > 0 {
+		var name []string
+		for _, words := range words {
+			if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 {
+				name = append(name, m[1], m[2])
+			} else {
+				name = append(name, words[0])
+			}
+		}
+
+		return strings.ToUpper(strings.Join(name, "_"))
+	}
+	return fName
 }
 
 // GatherInfo gathers information about the specified struct
@@ -103,26 +121,18 @@ func gatherInfo(prefix string, spec interface{}) ([]varInfo, error) {
 		info.Key = info.Name
 
 		// Best effort to un-pick camel casing as separate words
+		// make all field name into split words
 		if isTrue(ftype.Tag.Get("split_words")) {
-			words := gatherRegexp.FindAllStringSubmatch(ftype.Name, -1)
-			if len(words) > 0 {
-				var name []string
-				for _, words := range words {
-					if m := acronymRegexp.FindStringSubmatch(words[0]); len(m) == 3 {
-						name = append(name, m[1], m[2])
-					} else {
-						name = append(name, words[0])
-					}
-				}
-
-				info.Key = strings.Join(name, "_")
-			}
+			info.Key = extractWords(ftype.Name)
 		}
+
 		if info.Alt != "" {
 			info.Key = info.Alt
 		}
+		info.SplitWord = extractWords(ftype.Name)
 		if prefix != "" {
 			info.Key = fmt.Sprintf("%s_%s", prefix, info.Key)
+			info.SplitWord = fmt.Sprintf("%s_%s", strings.ToUpper(prefix), extractWords(ftype.Name))
 		}
 		info.Key = strings.ToUpper(info.Key)
 		infos = append(infos, info)
@@ -193,6 +203,13 @@ func Process(prefix string, spec interface{}) error {
 		value, ok := lookupEnv(info.Key)
 		if !ok && info.Alt != "" {
 			value, ok = lookupEnv(info.Alt)
+		}
+		if value == "" {
+			v, b := lookupEnv(info.SplitWord)
+			if b {
+				value = v
+				ok = b
+			}
 		}
 
 		def := info.Tags.Get("default")
