@@ -1,4 +1,4 @@
-module github.com/kelseyhightower/envconfig
+module github.com/xkamail/dotconfig
 
 go 1.18
 
